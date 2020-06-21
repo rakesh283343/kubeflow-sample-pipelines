@@ -1,0 +1,38 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: retry-random-failures-
+  annotations: {pipelines.kubeflow.org/kfp_sdk_version: 0.5.1, pipelines.kubeflow.org/pipeline_compilation_time: '2020-06-21T18:14:39.293387',
+    pipelines.kubeflow.org/pipeline_spec: '{"description": "The pipeline includes
+      two steps which fail randomly. It shows how to use ContainerOp(...).set_retry(...).",
+      "name": "Retry random failures"}'}
+  labels: {pipelines.kubeflow.org/kfp_sdk_version: 0.5.1}
+spec:
+  entrypoint: retry-random-failures
+  templates:
+  - name: random-failure
+    container:
+      args: ['import random; import sys; exit_code = int(random.choice(sys.argv[1].split(",")));
+          print(exit_code); sys.exit(exit_code)', '0,1,2,3']
+      command: [python, -c]
+      image: python:alpine3.6
+    metadata:
+      labels: {pipelines.kubeflow.org/pipeline-sdk-type: kfp}
+    retryStrategy: {limit: 10}
+  - name: random-failure-2
+    container:
+      args: ['import random; import sys; exit_code = int(random.choice(sys.argv[1].split(",")));
+          print(exit_code); sys.exit(exit_code)', '0,1']
+      command: [python, -c]
+      image: python:alpine3.6
+    metadata:
+      labels: {pipelines.kubeflow.org/pipeline-sdk-type: kfp}
+    retryStrategy: {limit: 5}
+  - name: retry-random-failures
+    dag:
+      tasks:
+      - {name: random-failure, template: random-failure}
+      - {name: random-failure-2, template: random-failure-2}
+  arguments:
+    parameters: []
+  serviceAccountName: pipeline-runner

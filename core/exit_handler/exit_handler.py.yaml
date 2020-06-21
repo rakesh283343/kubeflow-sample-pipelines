@@ -1,0 +1,79 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: exit-handler-
+  annotations: {pipelines.kubeflow.org/kfp_sdk_version: 0.5.1, pipelines.kubeflow.org/pipeline_compilation_time: '2020-06-21T14:13:02.027867',
+    pipelines.kubeflow.org/pipeline_spec: '{"description": "Downloads a message and
+      prints it. The exit handler will run after the pipeline finishes (successfully
+      or not).", "inputs": [{"default": "gs://ml-pipeline/shakespeare/shakespeare1.txt",
+      "name": "url", "optional": true}], "name": "Exit Handler"}'}
+  labels: {pipelines.kubeflow.org/kfp_sdk_version: 0.5.1}
+spec:
+  entrypoint: exit-handler
+  templates:
+  - name: echo
+    container:
+      args: [echo "$0", exit!]
+      command: [sh, -c]
+      image: library/bash:4.4.23
+    metadata:
+      labels: {pipelines.kubeflow.org/pipeline-sdk-type: kfp}
+  - name: echo-2
+    container:
+      args: [echo "$0", '{{inputs.parameters.gcs-download-data}}']
+      command: [sh, -c]
+      image: library/bash:4.4.23
+    inputs:
+      parameters:
+      - {name: gcs-download-data}
+    metadata:
+      labels: {pipelines.kubeflow.org/pipeline-sdk-type: kfp}
+  - name: exit-handler
+    inputs:
+      parameters:
+      - {name: url}
+    dag:
+      tasks:
+      - name: exit-handler-1
+        template: exit-handler-1
+        arguments:
+          parameters:
+          - {name: url, value: '{{inputs.parameters.url}}'}
+  - name: exit-handler-1
+    inputs:
+      parameters:
+      - {name: url}
+    dag:
+      tasks:
+      - name: echo-2
+        template: echo-2
+        dependencies: [gcs-download]
+        arguments:
+          parameters:
+          - {name: gcs-download-data, value: '{{tasks.gcs-download.outputs.parameters.gcs-download-data}}'}
+      - name: gcs-download
+        template: gcs-download
+        arguments:
+          parameters:
+          - {name: url, value: '{{inputs.parameters.url}}'}
+  - name: gcs-download
+    container:
+      args: [gsutil cat $0 | tee $1, '{{inputs.parameters.url}}', /tmp/results.txt]
+      command: [sh, -c]
+      image: google/cloud-sdk:279.0.0
+    inputs:
+      parameters:
+      - {name: url}
+    outputs:
+      parameters:
+      - name: gcs-download-data
+        valueFrom: {path: /tmp/results.txt}
+      artifacts:
+      - {name: gcs-download-data, path: /tmp/results.txt}
+    metadata:
+      labels: {pipelines.kubeflow.org/pipeline-sdk-type: kfp}
+  arguments:
+    parameters:
+    - {name: url, value: 'gs://ml-pipeline/shakespeare/shakespeare1.txt'}
+  serviceAccountName: pipeline-runner
+  onExit: echo

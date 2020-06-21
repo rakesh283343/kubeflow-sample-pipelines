@@ -1,0 +1,56 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: execution-order-pipeline-
+  annotations: {pipelines.kubeflow.org/kfp_sdk_version: 0.5.1, pipelines.kubeflow.org/pipeline_compilation_time: '2020-06-21T14:05:17.318064',
+    pipelines.kubeflow.org/pipeline_spec: '{"description": "A pipeline to demonstrate
+      execution order management.", "inputs": [{"default": "message 1", "name": "text1",
+      "optional": true}, {"default": "message 2", "name": "text2", "optional": true}],
+      "name": "Execution order pipeline"}'}
+  labels: {pipelines.kubeflow.org/kfp_sdk_version: 0.5.1}
+spec:
+  entrypoint: execution-order-pipeline
+  templates:
+  - name: echo1
+    container:
+      args: [echo "$0", '{{inputs.parameters.text1}}']
+      command: [sh, -c]
+      image: library/bash:4.4.23
+    inputs:
+      parameters:
+      - {name: text1}
+    metadata:
+      labels: {pipelines.kubeflow.org/pipeline-sdk-type: kfp}
+  - name: echo2
+    container:
+      args: [echo "$0", '{{inputs.parameters.text2}}']
+      command: [sh, -c]
+      image: library/bash:4.4.23
+    inputs:
+      parameters:
+      - {name: text2}
+    metadata:
+      labels: {pipelines.kubeflow.org/pipeline-sdk-type: kfp}
+  - name: execution-order-pipeline
+    inputs:
+      parameters:
+      - {name: text1}
+      - {name: text2}
+    dag:
+      tasks:
+      - name: echo1
+        template: echo1
+        arguments:
+          parameters:
+          - {name: text1, value: '{{inputs.parameters.text1}}'}
+      - name: echo2
+        template: echo2
+        dependencies: [echo1]
+        arguments:
+          parameters:
+          - {name: text2, value: '{{inputs.parameters.text2}}'}
+  arguments:
+    parameters:
+    - {name: text1, value: message 1}
+    - {name: text2, value: message 2}
+  serviceAccountName: pipeline-runner

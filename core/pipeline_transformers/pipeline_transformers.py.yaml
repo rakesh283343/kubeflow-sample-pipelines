@@ -1,0 +1,34 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: pipeline-transformer-
+  annotations: {pipelines.kubeflow.org/kfp_sdk_version: 0.5.1, pipelines.kubeflow.org/pipeline_compilation_time: '2020-06-21T17:39:06.504492',
+    pipelines.kubeflow.org/pipeline_spec: '{"description": "The pipeline shows how
+      to apply functions to all ops in the pipeline by pipeline transformers", "name":
+      "Pipeline transformer"}'}
+  labels: {pipelines.kubeflow.org/kfp_sdk_version: 0.5.1}
+spec:
+  entrypoint: pipeline-transformer
+  templates:
+  - name: pipeline-transformer
+    dag:
+      tasks:
+      - {name: print, template: print}
+      - {name: print-2, template: print-2}
+  - name: print
+    container:
+      command: [echo, 'hey, what are you up to?']
+      image: alpine:3.6
+    metadata:
+      annotations: {hobby: football}
+      labels: {pipelines.kubeflow.org/pipeline-sdk-type: kfp}
+  - name: print-2
+    container:
+      command: [echo, train my model.]
+      image: alpine:3.6
+    metadata:
+      annotations: {hobby: football}
+      labels: {pipelines.kubeflow.org/pipeline-sdk-type: kfp}
+  arguments:
+    parameters: []
+  serviceAccountName: pipeline-runner

@@ -1,0 +1,46 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: resourceop-basic-
+  annotations: {pipelines.kubeflow.org/kfp_sdk_version: 0.5.1, pipelines.kubeflow.org/pipeline_compilation_time: '2020-06-21T17:58:39.147089',
+    pipelines.kubeflow.org/pipeline_spec: '{"description": "A Basic Example on ResourceOp
+      Usage.", "name": "ResourceOp Basic"}'}
+  labels: {pipelines.kubeflow.org/kfp_sdk_version: 0.5.1}
+spec:
+  entrypoint: resourceop-basic
+  templates:
+  - name: resourceop-basic
+    dag:
+      tasks:
+      - {name: test-step, template: test-step}
+  - name: test-step
+    resource:
+      action: create
+      manifest: |
+        apiVersion: batch/v1
+        kind: Job
+        metadata:
+          generateName: resourceop-basic-job-
+        spec:
+          backoffLimit: 4
+          template:
+            metadata:
+              name: resource-basic
+            spec:
+              containers:
+              - command:
+                - /usr/bin/env
+                image: k8s.gcr.io/busybox
+                name: sample-container
+              restartPolicy: Never
+    outputs:
+      parameters:
+      - name: test-step-manifest
+        valueFrom: {jsonPath: '{}'}
+      - name: test-step-name
+        valueFrom: {jsonPath: '{.metadata.name}'}
+    metadata:
+      labels: {pipelines.kubeflow.org/pipeline-sdk-type: kfp}
+  arguments:
+    parameters: []
+  serviceAccountName: pipeline-runner
